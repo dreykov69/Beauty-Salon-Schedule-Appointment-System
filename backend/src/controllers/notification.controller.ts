@@ -1,3 +1,11 @@
+/**
+ * Notification Controller
+ *
+ * Handles HTTP request/response logic for user notifications:
+ * - Listing the authenticated user's notifications (paginated)
+ * - Marking a single notification as read
+ * - Marking all notifications as read
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as notificationService from '../services/notification.service';
 import { sendSuccess, sendError } from '../utils/response';
