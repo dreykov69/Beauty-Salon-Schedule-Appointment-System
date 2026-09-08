@@ -66,7 +66,10 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
     const user = await userService.updateUserStatus(targetUserId, isActive);
     return sendSuccess(res, 200, 'User status updated successfully', user);
   } catch (error: any) {
-    if (error.message === 'User not found') return sendError(res, 404, error.message);
+    // Target user does not exist
+    if (error.message === 'User not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
@@ -80,7 +83,10 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
     await userService.deleteUser(targetUserId);
     return sendSuccess(res, 200, 'User deleted successfully');
   } catch (error: any) {
-    if (error.message === 'User not found') return sendError(res, 404, error.message);
+    // Target user does not exist
+    if (error.message === 'User not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
