@@ -44,8 +44,9 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 // ──────────────────────────────────────────────────────────────────────────────
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const page = parseInt(req.query.page as string || '1');
-    const limit = parseInt(req.query.limit as string || '10');
+    // Parse pagination query params (defaults: page 1, 10 users per page)
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = parseInt((req.query.limit as string) || '10');
     const search = req.query.search as string | undefined;
 
     const result = await userService.getAllUsers(page, limit, search);
