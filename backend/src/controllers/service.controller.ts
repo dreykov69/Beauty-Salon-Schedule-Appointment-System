@@ -10,6 +10,9 @@ import * as serviceService from '../services/service.service';
 import { sendSuccess, sendError } from '../utils/response';
 import { PaginationQuery, SearchQuery } from '../types';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET ALL SERVICES
+// ──────────────────────────────────────────────────────────────────────────────
 export const getAllServices = async (req: Request<{}, {}, {}, PaginationQuery & SearchQuery>, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page || '1');
@@ -23,6 +26,9 @@ export const getAllServices = async (req: Request<{}, {}, {}, PaginationQuery & 
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET SERVICE BY ID
+// ──────────────────────────────────────────────────────────────────────────────
 export const getServiceById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const service = await serviceService.getServiceById((req.params.id as string));
@@ -33,6 +39,9 @@ export const getServiceById = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// CREATE SERVICE
+// ──────────────────────────────────────────────────────────────────────────────
 export const createService = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const service = await serviceService.createService(req.body);
@@ -42,6 +51,9 @@ export const createService = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// UPDATE SERVICE
+// ──────────────────────────────────────────────────────────────────────────────
 export const updateService = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const service = await serviceService.updateService((req.params.id as string), req.body);
@@ -52,6 +64,9 @@ export const updateService = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// DELETE SERVICE
+// ──────────────────────────────────────────────────────────────────────────────
 export const deleteService = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await serviceService.deleteService((req.params.id as string));
