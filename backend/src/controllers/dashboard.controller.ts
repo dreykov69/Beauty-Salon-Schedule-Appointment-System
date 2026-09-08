@@ -1,3 +1,9 @@
+/**
+ * Dashboard Controller
+ *
+ * Returns role-specific dashboard aggregate data for the authenticated user.
+ * ADMIN, STAFF, and USER each receive a different data payload from the service layer.
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as dashboardService from '../services/dashboard.service';
 import { sendSuccess, sendError } from '../utils/response';
