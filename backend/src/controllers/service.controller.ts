@@ -1,3 +1,10 @@
+/**
+ * Service Controller
+ *
+ * Handles HTTP request/response logic for salon service catalog operations:
+ * - Listing and retrieving services
+ * - Creating, updating, and deleting services (admin)
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as serviceService from '../services/service.service';
 import { sendSuccess, sendError } from '../utils/response';
