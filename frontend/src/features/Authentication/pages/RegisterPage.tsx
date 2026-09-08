@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AuthLayout from '../components/AuthLayout';
 import Button from '../../../components/Button';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -8,18 +8,41 @@ interface Props {
   onGoToLogin: () => void;
 }
 
+// Password requirement check helpers
+const pwChecks = [
+  { key: 'len',   label: 'At least 8 characters',           test: (p: string) => p.length >= 8 },
+  { key: 'upper', label: 'At least 1 uppercase letter',     test: (p: string) => /[A-Z]/.test(p) },
+  { key: 'lower', label: 'At least 1 lowercase letter',     test: (p: string) => /[a-z]/.test(p) },
+  { key: 'num',   label: 'At least 1 number',               test: (p: string) => /[0-9]/.test(p) },
+  { key: 'spec',  label: 'At least 1 special character',    test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
 function RegisterPage({ onGoToLogin }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPwHints, setShowPwHints] = useState(false);
 
   const { t } = useLanguage();
+
+  const pwResults = useMemo(
+    () => pwChecks.map((c) => ({ ...c, passed: c.test(password) })),
+    [password]
+  );
+  const allPwPassed = pwResults.every((c) => c.passed);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
+    // Client-side password validation before sending
+    if (!allPwPassed) {
+      const failed = pwResults.find((c) => !c.passed);
+      setError(failed ? failed.label : 'Password does not meet requirements');
+      return;
+    }
+
     try {
       const parts = name.trim().split(' ');
       const firstName = parts[0];
@@ -79,9 +102,23 @@ function RegisterPage({ onGoToLogin }: Props) {
             type="password" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onFocus={() => setShowPwHints(true)}
             className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-pink-500 bg-white text-gray-800"
             required
           />
+          {/* Live password requirements checklist */}
+          {showPwHints && (
+            <ul className="mt-2 space-y-1">
+              {pwResults.map((c) => (
+                <li key={c.key} className={`flex items-center gap-1.5 text-xs ${c.passed ? 'text-green-600' : 'text-gray-400'}`}>
+                  <span className={`inline-block w-3.5 h-3.5 rounded-full flex-shrink-0 text-center text-[10px] leading-3.5 font-bold ${c.passed ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                    {c.passed ? '✓' : '·'}
+                  </span>
+                  {c.label}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         
         <div className="pt-2">
@@ -100,3 +137,4 @@ function RegisterPage({ onGoToLogin }: Props) {
 }
 
 export default RegisterPage;
+

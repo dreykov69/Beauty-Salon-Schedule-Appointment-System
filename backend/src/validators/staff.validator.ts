@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { strongPasswordSchema } from './auth.validator';
 
 export const createStaffSchema = z.object({
   body: z.object({
@@ -30,8 +31,11 @@ export const updateStaffSchema = z.object({
     positionOm: z.string().optional().or(z.literal('')),
     imageUrl: z.string().optional().or(z.literal('')),
     isActive: z.boolean().optional(),
+    // Admin-only: password reset. Validated server-side for ADMIN role.
+    password: strongPasswordSchema.optional(),
   }),
 });
+
 
 
 export const assignServicesSchema = z.object({

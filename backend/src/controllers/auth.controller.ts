@@ -22,9 +22,20 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     if (error.message === 'Email or username already in use') {
       return sendError(res, 409, error.message);
     }
+    // Password strength validation errors from service layer
+    if (
+      error.message === 'Password must be at least 8 characters' ||
+      error.message === 'Password must contain at least one uppercase letter' ||
+      error.message === 'Password must contain at least one lowercase letter' ||
+      error.message === 'Password must contain at least one number' ||
+      error.message === 'Password must contain at least one special character'
+    ) {
+      return sendError(res, 400, error.message);
+    }
     next(error);
   }
 };
+
 
 // ──────────────────────────────────────────────────────────────────────────────
 // LOGIN

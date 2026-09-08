@@ -21,17 +21,19 @@ function StaffCard({ staff, onSelect }: StaffCardProps) {
   return (
     <div className="bg-white rounded-xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full relative">
 
-      <div className="h-52 bg-pink-50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+      <div className="bg-pink-50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
         {staffImg ? (
           <img
             src={staffImg}
             alt={`${firstName} ${lastName}`}
-            className="w-full h-full object-cover"
+            className="w-full h-auto max-h-72 object-contain"
           />
         ) : (
-          <span className="text-pink-300 font-bold text-4xl">
-            {firstName?.[0]}{lastName?.[0]}
-          </span>
+          <div className="h-52 w-full flex items-center justify-center">
+            <span className="text-pink-300 font-bold text-4xl">
+              {firstName?.[0]}{lastName?.[0]}
+            </span>
+          </div>
         )}
         {isDeactivated && (
           <span className="absolute top-2 right-2 bg-amber-500/90 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-xs backdrop-blur-xs">

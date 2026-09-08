@@ -109,6 +109,22 @@ function AdminStaff() {
 
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // ============================================================
+  // PASSWORD RESET (admin only)
+  // ============================================================
+
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordError, setResetPasswordError] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const pwChecks = [
+    { key: 'len',   label: 'At least 8 characters',        test: (p: string) => p.length >= 8 },
+    { key: 'upper', label: 'At least 1 uppercase letter',  test: (p: string) => /[A-Z]/.test(p) },
+    { key: 'lower', label: 'At least 1 lowercase letter',  test: (p: string) => /[a-z]/.test(p) },
+    { key: 'num',   label: 'At least 1 number',            test: (p: string) => /[0-9]/.test(p) },
+    { key: 'spec',  label: 'At least 1 special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  ];
+
   const [workingHours, setWorkingHours] =
     useState<WorkingHoursData>({
       dayOfWeek: 1,
@@ -456,6 +472,42 @@ function AdminStaff() {
       );
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  // ============================================================
+  // RESET STAFF PASSWORD (admin only)
+  // ============================================================
+
+  const handleResetPassword = async () => {
+    if (!managingStaffId) return;
+
+    setResetPasswordError("");
+
+    const failed = pwChecks.find((c) => !c.test(resetPassword));
+    if (failed) {
+      setResetPasswordError(failed.label);
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const res = await api.patch(`/staff/${managingStaffId}`, {
+        password: resetPassword,
+      });
+
+      if (res.data.success) {
+        success("Staff password reset successfully!");
+        setResetPassword("");
+        setResetPasswordError("");
+      }
+    } catch (error: any) {
+      toastError(
+        error?.response?.data?.message ||
+        "Failed to reset password."
+      );
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -1250,6 +1302,56 @@ function AdminStaff() {
                           {savingProfile
                             ? "Saving Profile..."
                             : "Save Profile Changes"}
+                        </Button>
+                      </div>
+
+                      {/* ==================================================
+                          RESET PASSWORD (admin only)
+                      ================================================== */}
+
+                      <div className="bg-white p-4 rounded-xl border border-amber-200">
+                        <h4 className="font-bold text-gray-700 mb-3 text-sm uppercase tracking-wide">
+                          Reset Staff Password
+                        </h4>
+
+                        {resetPasswordError && (
+                          <p className="text-xs text-red-500 mb-2">{resetPasswordError}</p>
+                        )}
+
+                        <div className="flex flex-col gap-2 mb-3">
+                          <input
+                            type="password"
+                            placeholder="New password"
+                            className="p-2 border rounded-lg text-sm"
+                            value={resetPassword}
+                            onChange={(e) => {
+                              setResetPassword(e.target.value);
+                              setResetPasswordError("");
+                            }}
+                          />
+                          {/* Live requirements checklist */}
+                          {resetPassword.length > 0 && (
+                            <ul className="space-y-0.5">
+                              {pwChecks.map((c) => {
+                                const passed = c.test(resetPassword);
+                                return (
+                                  <li key={c.key} className={`flex items-center gap-1.5 text-xs ${passed ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <span className={`inline-block w-3 h-3 rounded-full flex-shrink-0 text-center text-[9px] font-bold leading-3 ${passed ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>
+                                      {passed ? '✓' : '·'}
+                                    </span>
+                                    {c.label}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+
+                        <Button
+                          onClick={handleResetPassword}
+                          disabled={savingPassword || !resetPassword}
+                        >
+                          {savingPassword ? "Resetting..." : "Reset Password"}
                         </Button>
                       </div>
 

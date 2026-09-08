@@ -175,11 +175,17 @@ export const updateStaff = async (
   next: NextFunction
 ) => {
   try {
+    // Strip password from body if requester is not ADMIN — only ADMIN can reset passwords
+    const body = { ...req.body };
+    if (req.user!.role !== 'ADMIN' && body.password !== undefined) {
+      delete body.password;
+    }
+
     const staff = await staffService.updateStaff(
       req.params.id as string,
       req.user!.id,
       req.user!.role,
-      req.body
+      body
     );
 
     return sendSuccess(
@@ -212,6 +218,7 @@ export const updateStaff = async (
     next(error);
   }
 };
+
 
 // ==========================================
 // ASSIGN SERVICES

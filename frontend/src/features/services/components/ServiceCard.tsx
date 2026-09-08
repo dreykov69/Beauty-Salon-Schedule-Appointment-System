@@ -35,15 +35,15 @@ function ServiceCard({ service, onBook, onViewDetails }: Props) {
       onClick={() => onViewDetails && onViewDetails(service)}
       className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full hover:shadow-md hover:scale-[1.01] transition-all duration-150 cursor-pointer"
     >
-      <div className="h-48 bg-gray-100 overflow-hidden relative flex-shrink-0">
+      <div className="bg-gray-100 overflow-hidden relative flex-shrink-0">
         {imageSrc ? (
           <img 
             src={imageSrc} 
             alt={localized.name} 
-            className="w-full h-full object-cover"
+            className="w-full h-auto max-h-64 object-contain"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-48 w-full flex items-center justify-center text-gray-400 text-sm">
             {t('common.noImage', 'No Image')}
           </div>
         )}

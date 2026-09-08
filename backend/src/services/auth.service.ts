@@ -2,7 +2,29 @@ import { prisma } from '../config/database';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 
+// Authoritative password strength check (mirrors auth.validator.ts strongPasswordSchema)
+const validatePasswordStrength = (password: string): void => {
+  if (!password || password.length < 8) {
+    throw new Error('Password must be at least 8 characters');
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new Error('Password must contain at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    throw new Error('Password must contain at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    throw new Error('Password must contain at least one number');
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    throw new Error('Password must contain at least one special character');
+  }
+};
+
 export const registerUser = async (data: any) => {
+  // Authoritative backend validation
+  validatePasswordStrength(data.password);
+
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [{ email: data.email }, { username: data.username }],
@@ -28,6 +50,7 @@ export const registerUser = async (data: any) => {
 
   return { user: userWithoutPassword, token };
 };
+
 
 export const loginUser = async (data: any) => {
   const user = await prisma.user.findFirst({
