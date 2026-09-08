@@ -35,7 +35,9 @@ export const getServiceById = async (req: Request, res: Response, next: NextFunc
     const service = await serviceService.getServiceById(serviceId);
     return sendSuccess(res, 200, 'Service retrieved successfully', service);
   } catch (error: any) {
-    if (error.message === 'Service not found') return sendError(res, 404, error.message);
+    if (error.message === 'Service not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
@@ -61,7 +63,9 @@ export const updateService = async (req: Request, res: Response, next: NextFunct
     const service = await serviceService.updateService(serviceId, req.body);
     return sendSuccess(res, 200, 'Service updated successfully', service);
   } catch (error: any) {
-    if (error.message === 'Service not found') return sendError(res, 404, error.message);
+    if (error.message === 'Service not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
@@ -75,7 +79,9 @@ export const deleteService = async (req: Request, res: Response, next: NextFunct
     await serviceService.deleteService(serviceId);
     return sendSuccess(res, 200, 'Service deleted successfully');
   } catch (error: any) {
-    if (error.message === 'Service not found') return sendError(res, 404, error.message);
+    if (error.message === 'Service not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
