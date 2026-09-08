@@ -60,8 +60,9 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
 // ──────────────────────────────────────────────────────────────────────────────
 export const updateUserStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const targetUserId = req.params.id as string;
     const { isActive } = req.body;
-    const user = await userService.updateUserStatus((req.params.id as string), isActive);
+    const user = await userService.updateUserStatus(targetUserId, isActive);
     return sendSuccess(res, 200, 'User status updated successfully', user);
   } catch (error: any) {
     if (error.message === 'User not found') return sendError(res, 404, error.message);
@@ -74,7 +75,8 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 // ──────────────────────────────────────────────────────────────────────────────
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await userService.deleteUser((req.params.id as string));
+    const targetUserId = req.params.id as string;
+    await userService.deleteUser(targetUserId);
     return sendSuccess(res, 200, 'User deleted successfully');
   } catch (error: any) {
     if (error.message === 'User not found') return sendError(res, 404, error.message);
