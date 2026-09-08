@@ -1,3 +1,10 @@
+/**
+ * Post Controller
+ *
+ * Handles HTTP request/response logic for salon blog/news posts:
+ * - Listing and retrieving posts (public sees published only; staff/admin see all)
+ * - Creating, updating, and deleting posts (staff/admin)
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as postService from '../services/post.service';
 import { sendSuccess, sendError } from '../utils/response';
