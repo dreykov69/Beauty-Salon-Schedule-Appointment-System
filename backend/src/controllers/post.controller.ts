@@ -40,10 +40,13 @@ export const getPostById = async (req: Request, res: Response, next: NextFunctio
       publishedOnly = false;
     }
 
-    const post = await postService.getPostById((req.params.id as string), publishedOnly);
+    const postId = req.params.id as string;
+    const post = await postService.getPostById(postId, publishedOnly);
     return sendSuccess(res, 200, 'Post retrieved successfully', post);
   } catch (error: any) {
-    if (error.message === 'Post not found') return sendError(res, 404, error.message);
+    if (error.message === 'Post not found') {
+      return sendError(res, 404, error.message);
+    }
     next(error);
   }
 };
@@ -68,11 +71,16 @@ export const updatePost = async (req: Request, res: Response, next: NextFunction
   try {
     const authorId = req.user!.id;
     const role = req.user!.role;
-    const post = await postService.updatePost((req.params.id as string), authorId, role, req.body);
+    const postId = req.params.id as string;
+    const post = await postService.updatePost(postId, authorId, role, req.body);
     return sendSuccess(res, 200, 'Post updated successfully', post);
   } catch (error: any) {
-    if (error.message === 'Post not found') return sendError(res, 404, error.message);
-    if (error.message === 'Unauthorized') return sendError(res, 403, error.message);
+    if (error.message === 'Post not found') {
+      return sendError(res, 404, error.message);
+    }
+    if (error.message === 'Unauthorized') {
+      return sendError(res, 403, error.message);
+    }
     next(error);
   }
 };
@@ -84,11 +92,16 @@ export const deletePost = async (req: Request, res: Response, next: NextFunction
   try {
     const authorId = req.user!.id;
     const role = req.user!.role;
-    await postService.deletePost((req.params.id as string), authorId, role);
+    const postId = req.params.id as string;
+    await postService.deletePost(postId, authorId, role);
     return sendSuccess(res, 200, 'Post deleted successfully');
   } catch (error: any) {
-    if (error.message === 'Post not found') return sendError(res, 404, error.message);
-    if (error.message === 'Unauthorized') return sendError(res, 403, error.message);
+    if (error.message === 'Post not found') {
+      return sendError(res, 404, error.message);
+    }
+    if (error.message === 'Unauthorized') {
+      return sendError(res, 403, error.message);
+    }
     next(error);
   }
 };
