@@ -1,3 +1,11 @@
+/**
+ * User Controller
+ *
+ * Handles HTTP request/response logic for user-related operations:
+ * - Viewing and updating the authenticated user's profile
+ * - Admin listing of all users (with pagination and search)
+ * - Admin user status updates and deletions
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as userService from '../services/user.service';
 import { sendSuccess, sendError } from '../utils/response';
