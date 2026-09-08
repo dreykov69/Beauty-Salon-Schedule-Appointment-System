@@ -31,7 +31,8 @@ export const getAllServices = async (req: Request<{}, {}, {}, PaginationQuery & 
 // ──────────────────────────────────────────────────────────────────────────────
 export const getServiceById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const service = await serviceService.getServiceById((req.params.id as string));
+    const serviceId = req.params.id as string;
+    const service = await serviceService.getServiceById(serviceId);
     return sendSuccess(res, 200, 'Service retrieved successfully', service);
   } catch (error: any) {
     if (error.message === 'Service not found') return sendError(res, 404, error.message);
@@ -56,7 +57,8 @@ export const createService = async (req: Request, res: Response, next: NextFunct
 // ──────────────────────────────────────────────────────────────────────────────
 export const updateService = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const service = await serviceService.updateService((req.params.id as string), req.body);
+    const serviceId = req.params.id as string;
+    const service = await serviceService.updateService(serviceId, req.body);
     return sendSuccess(res, 200, 'Service updated successfully', service);
   } catch (error: any) {
     if (error.message === 'Service not found') return sendError(res, 404, error.message);
@@ -69,7 +71,8 @@ export const updateService = async (req: Request, res: Response, next: NextFunct
 // ──────────────────────────────────────────────────────────────────────────────
 export const deleteService = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await serviceService.deleteService((req.params.id as string));
+    const serviceId = req.params.id as string;
+    await serviceService.deleteService(serviceId);
     return sendSuccess(res, 200, 'Service deleted successfully');
   } catch (error: any) {
     if (error.message === 'Service not found') return sendError(res, 404, error.message);
