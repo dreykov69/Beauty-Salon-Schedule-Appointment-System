@@ -1,3 +1,11 @@
+/**
+ * Rating Controller
+ *
+ * Handles HTTP request/response logic for appointment ratings/reviews:
+ * - Submitting a rating for a completed appointment
+ * - Listing ratings by staff or service
+ * - Admin listing and deletion of ratings
+ */
 import { Request, Response, NextFunction } from 'express';
 import * as ratingService from '../services/rating.service';
 import { sendSuccess, sendError } from '../utils/response';
