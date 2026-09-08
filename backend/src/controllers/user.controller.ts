@@ -10,6 +10,9 @@ import { Request, Response, NextFunction } from 'express';
 import * as userService from '../services/user.service';
 import { sendSuccess, sendError } from '../utils/response';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET PROFILE
+// ──────────────────────────────────────────────────────────────────────────────
 export const getProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -23,6 +26,9 @@ export const getProfile = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// UPDATE PROFILE
+// ──────────────────────────────────────────────────────────────────────────────
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -33,6 +39,9 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET ALL USERS (Admin)
+// ──────────────────────────────────────────────────────────────────────────────
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string || '1');
@@ -46,6 +55,9 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// UPDATE USER STATUS (Admin)
+// ──────────────────────────────────────────────────────────────────────────────
 export const updateUserStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { isActive } = req.body;
@@ -57,6 +69,9 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// DELETE USER (Admin)
+// ──────────────────────────────────────────────────────────────────────────────
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await userService.deleteUser((req.params.id as string));
