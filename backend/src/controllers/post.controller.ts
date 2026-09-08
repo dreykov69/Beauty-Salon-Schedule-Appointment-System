@@ -9,6 +9,9 @@ import { Request, Response, NextFunction } from 'express';
 import * as postService from '../services/post.service';
 import { sendSuccess, sendError } from '../utils/response';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET ALL POSTS
+// ──────────────────────────────────────────────────────────────────────────────
 export const getAllPosts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string || '1');
@@ -27,6 +30,9 @@ export const getAllPosts = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET POST BY ID
+// ──────────────────────────────────────────────────────────────────────────────
 export const getPostById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     let publishedOnly = true;
@@ -42,6 +48,9 @@ export const getPostById = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// CREATE POST
+// ──────────────────────────────────────────────────────────────────────────────
 export const createPost = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authorId = req.user!.id;
@@ -52,6 +61,9 @@ export const createPost = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// UPDATE POST
+// ──────────────────────────────────────────────────────────────────────────────
 export const updatePost = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authorId = req.user!.id;
@@ -65,6 +77,9 @@ export const updatePost = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// DELETE POST
+// ──────────────────────────────────────────────────────────────────────────────
 export const deletePost = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authorId = req.user!.id;
