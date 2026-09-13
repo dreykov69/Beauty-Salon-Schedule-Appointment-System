@@ -2,14 +2,42 @@ import nodemailer from 'nodemailer';
 import dns from 'dns';
 import { env } from '../config/env';
 
-// Prefer IPv4 resolution to prevent ENETUNREACH errors on hosts without active IPv6 routing
+// Prefer IPv4 resolution to prevent ENETUNREACH errors on hosts without active IPv6 routing (e.g. Render)
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
 }
 
+// Nodemailer 10 resolves SMTP hostnames by querying dns.resolve4 and dns.resolve6 via dns.Resolver.
+// Cloud environments like Render lack outbound IPv6 routing, so any connection attempt to an
+// IPv6 address (AAAA record) fails immediately with `connect ENETUNREACH ... - Local (:::0)`.
+// By returning NODATA for resolve6, Nodemailer resolves and connects via valid IPv4 addresses only.
+const disableIPv6Resolution = (
+  _hostname: string,
+  optionsOrCallback: any,
+  callback?: (err: NodeJS.ErrnoException | null, addresses: string[]) => void
+) => {
+  const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+  if (typeof cb === 'function') {
+    const err: any = new Error('IPv6 resolution disabled');
+    err.code = 'NODATA';
+    cb(err, []);
+  }
+};
+
+(dns as any).resolve6 = disableIPv6Resolution;
+if (dns.Resolver && dns.Resolver.prototype) {
+  ((dns.Resolver as any).prototype).resolve6 = disableIPv6Resolution;
+}
+if (dns.promises) {
+  (dns.promises as any).resolve6 = async () => [];
+  if (dns.promises.Resolver && (dns.promises.Resolver as any).prototype) {
+    ((dns.promises.Resolver as any).prototype).resolve6 = async () => [];
+  }
+}
+
 /**
  * Creates and returns a Nodemailer transporter configured from environment variables.
- * When using port 587, uses STARTTLS (secure: false, requireTLS: true).
+ * When using port 587, uses STARTTLS (secure: false, requireTLS: true) over IPv4.
  */
 export const getTransporter = () => {
   const port = parseInt(env.SMTP_PORT || '587', 10);
@@ -18,17 +46,18 @@ export const getTransporter = () => {
   return nodemailer.createTransport({
     host: env.SMTP_HOST || 'smtp.gmail.com',
     port,
-    secure: isSecure, // false for port 587 (STARTTLS), true for port 465 (implicit TLS)
+    secure: isSecure, // false for port 587 (STARTTLS)
     requireTLS: !isSecure, // Enforce STARTTLS encryption when port is 587
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASSWORD,
     },
     tls: {
+      servername: env.SMTP_HOST || 'smtp.gmail.com',
       rejectUnauthorized: true,
       minVersion: 'TLSv1.2',
     },
-    connectionTimeout: 6000,
+    connectionTimeout: 10000,
   });
 };
 
