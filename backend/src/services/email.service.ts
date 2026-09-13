@@ -9,10 +9,10 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 
 /**
  * Creates and returns a Nodemailer transporter configured from environment variables.
- * Port 587 uses STARTTLS (secure: false, requireTLS: true), while Port 465 uses direct SSL/TLS (secure: true).
+ * When using port 587, uses STARTTLS (secure: false, requireTLS: true).
  */
-export const getTransporter = (overridePort?: number) => {
-  const port = overridePort ?? parseInt(env.SMTP_PORT || '587', 10);
+export const getTransporter = () => {
+  const port = parseInt(env.SMTP_PORT || '587', 10);
   const isSecure = port === 465;
 
   return nodemailer.createTransport({
@@ -34,26 +34,14 @@ export const getTransporter = (overridePort?: number) => {
 
 /**
  * Verifies the SMTP connection and authentication credentials.
- * Automatically tries port 465 if configured port 587 experiences an ISP/network timeout.
  */
 export const verifySmtpConnection = async (): Promise<boolean> => {
   if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
     throw new Error('SMTP credentials are not configured');
   }
-  const configuredPort = parseInt(env.SMTP_PORT || '587', 10);
-  try {
-    const transporter = getTransporter(configuredPort);
-    await transporter.verify();
-    return true;
-  } catch (error: any) {
-    if (configuredPort === 587 && (error.code === 'ETIMEDOUT' || error.message?.includes('timeout'))) {
-      console.warn('[EmailService] SMTP Port 587 timed out (network/ISP filter). Trying fallback to Port 465 (SSL/TLS)...');
-      const fallbackTransporter = getTransporter(465);
-      await fallbackTransporter.verify();
-      return true;
-    }
-    throw error;
-  }
+  const transporter = getTransporter();
+  await transporter.verify();
+  return true;
 };
 
 /**
@@ -69,8 +57,6 @@ export const sendPasswordResetEmail = async (to: string, token: string): Promise
 
   const frontendUrl = (env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
   const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
-
-  const configuredPort = parseInt(env.SMTP_PORT || '587', 10);
 
   const html = `
 <!DOCTYPE html>
@@ -241,16 +227,6 @@ If you did not request this password reset, please ignore this email. Your accou
     html,
   };
 
-  try {
-    const transporter = getTransporter(configuredPort);
-    await transporter.sendMail(mailOptions);
-  } catch (error: any) {
-    if (configuredPort === 587 && (error.code === 'ETIMEDOUT' || error.message?.includes('timeout'))) {
-      console.warn('[EmailService] SMTP Port 587 timed out (network/ISP filter). Retrying via Port 465 (SSL/TLS)...');
-      const fallbackTransporter = getTransporter(465);
-      await fallbackTransporter.sendMail(mailOptions);
-      return;
-    }
-    throw error;
-  }
+  const transporter = getTransporter();
+  await transporter.sendMail(mailOptions);
 };
