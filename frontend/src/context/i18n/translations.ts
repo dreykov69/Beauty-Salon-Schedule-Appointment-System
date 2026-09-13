@@ -45,6 +45,13 @@ export const translations: Record<Language, Record<string, string>> = {
     'auth.loginFailed': 'Login failed. Please check your credentials.',
     'auth.registrationFailed': 'Registration failed. Please try again.',
     'auth.registrationSuccess': 'Registration successful! Please sign in.',
+    'auth.forgotPassword': 'Forgot Password?',
+    'auth.forgotPasswordTitle': 'Forgot Password',
+    'auth.forgotPasswordSubtitle': 'Enter your email to receive a password reset link',
+    'auth.sendResetLink': 'Send Reset Link',
+    'auth.resetPassword': 'Reset Password',
+    'auth.newPassword': 'New Password',
+    'auth.backToSignIn': 'Back to Sign In',
 
     // Common
     'common.loading': 'Loading...',

@@ -10,6 +10,8 @@ import ProfilePage from "./features/Profile/pages/ProfilePage";
 import AppointmentsPage from "./features/Appointment/pages/AppointmentsPage";
 import LoginPage from "./features/Authentication/pages/LoginPage";
 import RegisterPage from "./features/Authentication/pages/RegisterPage";
+import ForgotPasswordPage from "./features/Authentication/pages/ForgotPasswordPage";
+import ResetPasswordPage from "./features/Authentication/pages/ResetPasswordPage";
 import AdminPage from "./features/admin/pages/AdminPage";
 import IntegrationPage from "./features/Integration/pages/IntegrationPage";
 import StaffDashboardPage from "./features/staff/pages/StaffDashboardPage";
@@ -59,11 +61,25 @@ const AppContent = () => {
       {page === "profile" && <ProfilePage />}
       
       {page === "login" && (
-        <LoginPage onGoToRegister={() => setPage("register")} />
+        <LoginPage
+          onGoToRegister={() => setPage("register")}
+          onGoToForgotPassword={() => setPage("forgot-password")}
+        />
       )}
       
       {page === "register" && (
         <RegisterPage onGoToLogin={() => setPage("login")} />
+      )}
+
+      {page === "forgot-password" && (
+        <ForgotPasswordPage onGoToLogin={() => setPage("login")} />
+      )}
+
+      {page === "reset-password" && (
+        <ResetPasswordPage
+          onGoToLogin={() => setPage("login")}
+          onGoToForgotPassword={() => setPage("forgot-password")}
+        />
       )}
     </div>
   );

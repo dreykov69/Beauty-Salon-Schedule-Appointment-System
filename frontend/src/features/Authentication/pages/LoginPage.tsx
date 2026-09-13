@@ -8,9 +8,10 @@ import { authService } from '../../../services/auth.service';
 
 interface Props {
   onGoToRegister: () => void;
+  onGoToForgotPassword?: () => void;
 }
 
-function LoginPage({ onGoToRegister }: Props) {
+function LoginPage({ onGoToRegister, onGoToForgotPassword }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,6 +19,14 @@ function LoginPage({ onGoToRegister }: Props) {
   const { login } = useAuth();
   const { setPage, redirectAfterLogin, setRedirectAfterLogin } = useNavigation();
   const { t } = useLanguage();
+
+  const handleForgotPassword = () => {
+    if (onGoToForgotPassword) {
+      onGoToForgotPassword();
+    } else {
+      setPage('forgot-password');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +81,16 @@ function LoginPage({ onGoToRegister }: Props) {
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-sm text-gray-500 font-medium mb-1">{t('auth.password')}</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm text-gray-500 font-medium">{t('auth.password')}</label>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-xs text-pink-600 hover:text-pink-700 hover:underline font-medium cursor-pointer"
+            >
+              {t('auth.forgotPassword', 'Forgot Password?')}
+            </button>
+          </div>
           <input 
             type="password" 
             value={password}

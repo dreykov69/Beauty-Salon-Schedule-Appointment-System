@@ -75,3 +75,39 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
     next(error);
   }
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// FORGOT PASSWORD
+// ──────────────────────────────────────────────────────────────────────────────
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await authService.requestPasswordReset(req.body.email);
+    return sendSuccess(res, 200, result.message);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// RESET PASSWORD
+// ──────────────────────────────────────────────────────────────────────────────
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await authService.resetPassword(req.body);
+    return sendSuccess(res, 200, result.message);
+  } catch (error: any) {
+    if (
+      error.message === 'Invalid or expired reset token' ||
+      error.message === 'Passwords do not match' ||
+      error.message === 'Password must be at least 8 characters' ||
+      error.message === 'Password must contain at least one uppercase letter' ||
+      error.message === 'Password must contain at least one lowercase letter' ||
+      error.message === 'Password must contain at least one number' ||
+      error.message === 'Password must contain at least one special character'
+    ) {
+      return sendError(res, 400, error.message);
+    }
+    next(error);
+  }
+};
+

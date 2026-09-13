@@ -11,6 +11,11 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   ADMIN_USERNAME: z.string().default('admin'),
   ADMIN_PASSWORD: z.string().default('Admin@12345'),
+  SMTP_HOST: z.string().optional().default('smtp.gmail.com'),
+  SMTP_PORT: z.string().optional().default('465'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  FRONTEND_URL: z.string().optional().default('http://localhost:5173'),
 });
 
 const _env = envSchema.safeParse(process.env);
