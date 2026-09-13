@@ -1,0 +1,15 @@
+node_modules/
+dist/
+
+.env
+.env.*
+!.env.example
+
+*.log
+
+uploads/*
+!uploads/.gitkeep
+
+src/generated/
+
+coverage/

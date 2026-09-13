@@ -1,7 +1,104 @@
-node_modules/
+# ==========================================
+# ENVIRONMENT VARIABLES / SECRETS
+# ==========================================
 .env
-.env.local
+.env.*
+!.env.example
+
+# ==========================================
+# NODE.JS
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# BUILD OUTPUT
+# ==========================================
 dist/
 build/
+out/
+
+# ==========================================
+# VITE
+# ==========================================
+.vite/
+
+# ==========================================
+# TEST / COVERAGE
+# ==========================================
 coverage/
+.nyc_output/
+
+# ==========================================
+# LOGS
+# ==========================================
 *.log
+logs/
+
+# ==========================================
+# TEMPORARY FILES
+# ==========================================
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# ==========================================
+# OPERATING SYSTEM FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# EDITOR / IDE
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# PRISMA
+# ==========================================
+# Do NOT ignore prisma migrations.
+# They must be committed.
+#
+# Generated Prisma client can be ignored
+# if it is generated during install/build.
+src/generated/
+
+# ==========================================
+# UPLOADS / LOCAL USER FILES
+# ==========================================
+# Ignore local uploaded files if these are
+# runtime-generated and stored in Cloudflare R2.
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ==========================================
+# CLOUDFLARE / WRANGLER
+# ==========================================
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# ==========================================
+# LOCAL DATABASE / CACHE
+# ==========================================
+*.sqlite
+*.sqlite3
+*.db
+
+# ==========================================
+# SECRETS / CERTIFICATES
+# ==========================================
+*.pem
+*.key
+*.p12
+*.pfx
