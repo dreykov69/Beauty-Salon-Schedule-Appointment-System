@@ -1,89 +1,37 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
+import { Resend } from 'resend';
 import { env } from '../config/env';
 
-// Prefer IPv4 resolution to prevent ENETUNREACH errors on hosts without active IPv6 routing (e.g. Render)
-if (typeof dns.setDefaultResultOrder === 'function') {
-  dns.setDefaultResultOrder('ipv4first');
-}
-
-// Nodemailer 10 resolves SMTP hostnames by querying dns.resolve4 and dns.resolve6 via dns.Resolver.
-// Cloud environments like Render lack outbound IPv6 routing, so any connection attempt to an
-// IPv6 address (AAAA record) fails immediately with `connect ENETUNREACH ... - Local (:::0)`.
-// By returning NODATA for resolve6, Nodemailer resolves and connects via valid IPv4 addresses only.
-const disableIPv6Resolution = (
-  _hostname: string,
-  optionsOrCallback: any,
-  callback?: (err: NodeJS.ErrnoException | null, addresses: string[]) => void
-) => {
-  const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
-  if (typeof cb === 'function') {
-    const err: any = new Error('IPv6 resolution disabled');
-    err.code = 'NODATA';
-    cb(err, []);
-  }
-};
-
-(dns as any).resolve6 = disableIPv6Resolution;
-if (dns.Resolver && dns.Resolver.prototype) {
-  ((dns.Resolver as any).prototype).resolve6 = disableIPv6Resolution;
-}
-if (dns.promises) {
-  (dns.promises as any).resolve6 = async () => [];
-  if (dns.promises.Resolver && (dns.promises.Resolver as any).prototype) {
-    ((dns.promises.Resolver as any).prototype).resolve6 = async () => [];
-  }
-}
+let resendInstance: Resend | null = null;
 
 /**
- * Creates and returns a Nodemailer transporter configured from environment variables.
- * When using port 587, uses STARTTLS (secure: false, requireTLS: true) over IPv4.
+ * Returns the Resend client instance.
+ * Initializes the client lazily if not already created.
  */
-export const getTransporter = () => {
-  const port = parseInt(env.SMTP_PORT || '587', 10);
-  const isSecure = port === 465;
-
-  return nodemailer.createTransport({
-    host: env.SMTP_HOST || 'smtp.gmail.com',
-    port,
-    secure: isSecure, // false for port 587 (STARTTLS)
-    requireTLS: !isSecure, // Enforce STARTTLS encryption when port is 587
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASSWORD,
-    },
-    tls: {
-      servername: env.SMTP_HOST || 'smtp.gmail.com',
-      rejectUnauthorized: true,
-      minVersion: 'TLSv1.2',
-    },
-    connectionTimeout: 10000,
-  });
-};
-
-/**
- * Verifies the SMTP connection and authentication credentials.
- */
-export const verifySmtpConnection = async (): Promise<boolean> => {
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
-    throw new Error('SMTP credentials are not configured');
+export const getResendClient = (): Resend => {
+  if (!resendInstance) {
+    if (!env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+    resendInstance = new Resend(env.RESEND_API_KEY);
   }
-  const transporter = getTransporter();
-  await transporter.verify();
-  return true;
+  return resendInstance;
 };
 
 /**
- * Sends a password reset email with salon branding, reset button, and security notice.
+ * Sets a custom Resend client instance (primarily for testing and mocking).
+ */
+export const setResendClient = (client: Resend | null) => {
+  resendInstance = client;
+};
+
+/**
+ * Sends a password reset email using the Resend Email API with salon branding,
+ * reset button, and security notices.
  *
  * @param to - Recipient email address
  * @param token - Raw cryptographically generated reset token
  */
 export const sendPasswordResetEmail = async (to: string, token: string): Promise<void> => {
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
-    throw new Error('SMTP credentials are not configured');
-  }
-
   const frontendUrl = (env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
   const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
@@ -248,14 +196,18 @@ If you did not request this password reset, please ignore this email. Your accou
 © ${new Date().getFullYear()} Beauty Salon
 `;
 
-  const mailOptions = {
-    from: `"Beauty Salon" <${env.SMTP_USER}>`,
-    to,
+  const resend = getResendClient();
+
+  const { data, error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to: to,
     subject: 'Password Reset Request - Beauty Salon',
     text,
     html,
-  };
+  });
 
-  const transporter = getTransporter();
-  await transporter.sendMail(mailOptions);
+  if (error) {
+    console.error('Failed to send password reset email via Resend:', error.message || 'Resend API error');
+    throw new Error(`Failed to send password reset email: ${error.message || 'Resend API error'}`);
+  }
 };

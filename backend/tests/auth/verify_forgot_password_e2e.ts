@@ -16,40 +16,30 @@ async function testForgotPasswordFlow() {
 
   console.log(`[INFO] Test server started at ${baseUrl}`);
 
-  // Use the configured SMTP_USER email so an actual email can be delivered to the owner's inbox if desired
-  const testEmail = env.SMTP_USER || `test_salon_${Date.now()}@gmail.com`;
+  const testEmail = `test_salon_resend_${Date.now()}@example.com`;
   const username = `testuser_${Date.now()}`;
   const initialPassword = 'InitialPassword123!';
-  const newPassword = 'NewlyResetPassword123!';
 
   try {
     // 1. Ensure a user with this email exists in DB (or create one)
-    let user = await prisma.user.findFirst({
-      where: { email: { equals: testEmail, mode: 'insensitive' } },
+    console.log(`[STEP 1] Creating test user with email ${testEmail}...`);
+    const regRes = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: testEmail,
+        username,
+        password: initialPassword,
+        firstName: 'Password',
+        lastName: 'Tester',
+      }),
     });
-
-    if (!user) {
-      console.log(`[STEP 1] Creating test user with email ${testEmail}...`);
-      const regRes = await fetch(`${baseUrl}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: testEmail,
-          username,
-          password: initialPassword,
-          firstName: 'Password',
-          lastName: 'Tester',
-        }),
-      });
-      const regData: any = await regRes.json();
-      if (!regRes.ok || !regData.success) {
-        throw new Error(`Registration failed: ${JSON.stringify(regData)}`);
-      }
-      user = regData.data.user;
-      console.log('✔ Test user created successfully.');
-    } else {
-      console.log(`[STEP 1] Found existing user for ${testEmail} (ID: ${user.id})`);
+    const regData: any = await regRes.json();
+    if (!regRes.ok || !regData.success) {
+      throw new Error(`Registration failed: ${JSON.stringify(regData)}`);
     }
+    const user = regData.data.user;
+    console.log('✔ Test user created successfully.');
 
     // 2. Call /auth/forgot-password
     console.log(`\n[STEP 2] Calling /auth/forgot-password for ${testEmail}...`);
@@ -66,12 +56,12 @@ async function testForgotPasswordFlow() {
     if (!forgotRes.ok || !forgotData.success) {
       throw new Error(`Forgot password request failed: ${JSON.stringify(forgotData)}`);
     }
-    console.log('✔ Forgot-password endpoint returned 200 success!');
+    console.log('✔ Forgot-password endpoint returned 200 generic success!');
 
     // 3. Verify that a password reset token was recorded in the database
     console.log('\n[STEP 3] Verifying token in database...');
     const tokenRecord = await prisma.passwordResetToken.findFirst({
-      where: { userId: user!.id },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -81,8 +71,12 @@ async function testForgotPasswordFlow() {
 
     console.log(`✔ Password reset token successfully created in DB (Expires at: ${tokenRecord.expiresAt.toISOString()})`);
 
+    // Clean up created user
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+    await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+
     console.log('\n═══════════════════════════════════════════════════════════════');
-    console.log('   🎉 FORGOT-PASSWORD & SMTP FLOW VERIFICATION PASSED!        ');
+    console.log('   🎉 FORGOT-PASSWORD FLOW VERIFICATION PASSED!               ');
     console.log('═══════════════════════════════════════════════════════════════\n');
   } catch (error: any) {
     console.error('\n✘ Test failed with error:', error.message);

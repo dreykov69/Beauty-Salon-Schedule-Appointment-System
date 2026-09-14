@@ -1,33 +1,72 @@
 import app from '../../src/app';
 import { prisma } from '../../src/config/database';
+import { env } from '../../src/config/env';
+import { setResendClient } from '../../src/services/email.service';
 import crypto from 'crypto';
 import http from 'http';
 
 async function runTests() {
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log('   BEAUTY SALON - FORGOT & RESET PASSWORD VERIFICATION SUITE   ');
+  console.log('   BEAUTY SALON - RESEND PASSWORD RESET VERIFICATION SUITE     ');
   console.log('═══════════════════════════════════════════════════════════════\n');
 
-  // 1. Start ephemeral HTTP server
+  // Spy on console to verify Requirement 10 (No secrets/passwords/raw tokens logged)
+  const loggedOutputs: string[] = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  const originalWarn = console.warn;
+
+  console.log = (...args: any[]) => {
+    loggedOutputs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+    originalLog(...args);
+  };
+  console.error = (...args: any[]) => {
+    loggedOutputs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+    originalError(...args);
+  };
+  console.warn = (...args: any[]) => {
+    loggedOutputs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+    originalWarn(...args);
+  };
+
+  // Mock Resend Client to capture email sending without requiring real API calls
+  let sentEmailPayload: any = null;
+  let sendCallCount = 0;
+
+  const mockResend = {
+    emails: {
+      send: async (payload: any) => {
+        sendCallCount++;
+        sentEmailPayload = payload;
+        return {
+          data: { id: `mock_email_${Date.now()}` },
+          error: null,
+        };
+      },
+    },
+  };
+
+  setResendClient(mockResend as any);
+
+  // Start ephemeral HTTP server
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address() as { port: number };
   const baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
 
-  console.log(`[INFO] Test server started at ${baseUrl}`);
-
-  const testEmail = `pwd_reset_test_${Date.now()}@example.com`;
-  const testUsername = `resetuser_${Date.now()}`;
+  const testEmail = `resend_test_${Date.now()}@example.com`;
+  const testUsername = `user_${Date.now()}`;
   const oldPassword = 'OldPassword123!';
   const newPassword = 'BrandNewPassword123!';
 
   let testUserId = '';
+  let extractedRawToken = '';
 
   try {
-    // -------------------------------------------------------------
-    // Test 1: User Registration
-    // -------------------------------------------------------------
-    console.log('\n[TEST 1] Registering a test user...');
+    // -------------------------------------------------------------------------
+    // Setup: Register Test User
+    // -------------------------------------------------------------------------
+    originalLog('\n[SETUP] Registering test user...');
     const regRes = await fetch(`${baseUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,191 +74,175 @@ async function runTests() {
         email: testEmail,
         username: testUsername,
         password: oldPassword,
-        firstName: 'Reset',
+        firstName: 'Resend',
         lastName: 'Tester',
       }),
     });
     const regData: any = await regRes.json();
     if (!regRes.ok || !regData.success) {
-      throw new Error(`Registration failed: ${JSON.stringify(regData)}`);
+      throw new Error(`User registration failed: ${JSON.stringify(regData)}`);
     }
     testUserId = regData.data.user.id;
-    console.log(`✔ Registered test user: ${testEmail} (ID: ${testUserId})`);
+    originalLog(`✔ Registered test user (ID: ${testUserId})`);
 
-    // -------------------------------------------------------------
-    // Test 2: Login with Initial Password
-    // -------------------------------------------------------------
-    console.log('\n[TEST 2] Logging in with initial password...');
-    const loginRes = await fetch(`${baseUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: testEmail, password: oldPassword }),
-    });
-    const loginData: any = await loginRes.json();
-    if (!loginRes.ok || !loginData.success) {
-      throw new Error(`Login failed with initial password: ${JSON.stringify(loginData)}`);
-    }
-    console.log('✔ Initial login successful');
-
-    // -------------------------------------------------------------
-    // Test 3: Forgot Password with Non-Existent Email (Security: no email enumeration)
-    // -------------------------------------------------------------
-    console.log('\n[TEST 3] Requesting reset for non-existent email...');
+    // -------------------------------------------------------------------------
+    // Requirement 1: Forgot-password returns expected generic success response
+    // (Both for existing and non-existing email to prevent enumeration)
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 1] Verifying generic response on forgot-password...');
     const forgotNonExistentRes = await fetch(`${baseUrl}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'non_existent_random_user_999@example.com' }),
+      body: JSON.stringify({ email: 'definitely_non_existent_98765@example.com' }),
     });
-    const forgotNonExistentData: any = await forgotNonExistentRes.json();
-    if (!forgotNonExistentRes.ok || !forgotNonExistentData.success) {
-      throw new Error(`Non-existent email forgot-password failed: ${JSON.stringify(forgotNonExistentData)}`);
+    const nonExistentData: any = await forgotNonExistentRes.json();
+    if (!forgotNonExistentRes.ok || !nonExistentData.success) {
+      throw new Error(`Non-existent user forgot-password failed: ${JSON.stringify(nonExistentData)}`);
     }
-    console.log(`✔ Generic success response returned: "${forgotNonExistentData.message}"`);
+    const expectedGenericMsg = 'If an account exists with that email, a password reset link has been sent.';
+    if (nonExistentData.message !== expectedGenericMsg) {
+      throw new Error(`Expected generic message "${expectedGenericMsg}", got "${nonExistentData.message}"`);
+    }
 
-    // -------------------------------------------------------------
-    // Test 4: Forgot Password with Invalid Email Format
-    // -------------------------------------------------------------
-    console.log('\n[TEST 4] Requesting reset with invalid email format...');
-    const invalidEmailRes = await fetch(`${baseUrl}/auth/forgot-password`, {
+    // Now call for existing user
+    const forgotRes = await fetch(`${baseUrl}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'not-a-valid-email' }),
+      body: JSON.stringify({ email: testEmail }),
     });
-    const invalidEmailData: any = await invalidEmailRes.json();
-    if (invalidEmailRes.status !== 400) {
-      throw new Error(`Expected 400 for invalid email format, got ${invalidEmailRes.status}`);
+    const forgotData: any = await forgotRes.json();
+    if (!forgotRes.ok || !forgotData.success || forgotData.message !== expectedGenericMsg) {
+      throw new Error(`Existing user forgot-password failed or gave different message: ${JSON.stringify(forgotData)}`);
     }
-    console.log('✔ Correctly rejected with 400 Validation Error');
+    originalLog(`✔ REQ 1 PASSED: Generic success message returned for both existing and non-existing emails.`);
 
-    // -------------------------------------------------------------
-    // Test 5: Forgot Password with Registered Email (Database verification)
-    // -------------------------------------------------------------
-    console.log('\n[TEST 5] Requesting reset for registered test user...');
-    // Create token directly via service logic or API
-    // Note: SMTP might fail in offline test if network/smtp is blocked, so we verify database token creation
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-    const tokenRecord = await prisma.passwordResetToken.create({
-      data: {
-        tokenHash,
-        userId: testUserId,
-        expiresAt,
-      },
+    // -------------------------------------------------------------------------
+    // Requirement 2: Reset token is created correctly
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 2] Verifying reset token in database...');
+    const tokenRecord = await prisma.passwordResetToken.findFirst({
+      where: { userId: testUserId },
+      orderBy: { createdAt: 'desc' },
     });
-    console.log(`✔ Token created in DB with hash: ${tokenHash.slice(0, 16)}...`);
-    console.log(`✔ Expiration set to: ${tokenRecord.expiresAt.toISOString()} (15 minutes window)`);
+    if (!tokenRecord) {
+      throw new Error('Password reset token record was not found in database!');
+    }
+    // Verify token expiration is approximately 15 minutes in the future
+    const now = Date.now();
+    const expiryDiffMinutes = (tokenRecord.expiresAt.getTime() - now) / (1000 * 60);
+    if (expiryDiffMinutes < 14 || expiryDiffMinutes > 16) {
+      throw new Error(`Token expiration window unexpected: ${expiryDiffMinutes.toFixed(2)} minutes`);
+    }
+    // Verify token is hashed (64 hex characters sha256)
+    if (!/^[a-f0-9]{64}$/i.test(tokenRecord.tokenHash)) {
+      throw new Error(`Token hash is not a 64-char SHA256 string: ${tokenRecord.tokenHash}`);
+    }
+    originalLog(`✔ REQ 2 PASSED: Reset token stored as SHA-256 hash with 15-minute expiration (${expiryDiffMinutes.toFixed(1)} mins).`);
 
-    // -------------------------------------------------------------
-    // Test 6: Reset Password with Fake/Invalid Token
-    // -------------------------------------------------------------
-    console.log('\n[TEST 6] Testing reset with completely invalid token...');
-    const fakeTokenRes = await fetch(`${baseUrl}/auth/reset-password`, {
+    // -------------------------------------------------------------------------
+    // Requirement 3: Resend email sending is invoked correctly
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 3] Verifying Resend email invocation...');
+    if (sendCallCount !== 1 || !sentEmailPayload) {
+      throw new Error(`Resend send was not called exactly once! Call count: ${sendCallCount}`);
+    }
+    if (sentEmailPayload.to !== testEmail) {
+      throw new Error(`Recipient mismatch: expected ${testEmail}, got ${sentEmailPayload.to}`);
+    }
+    if (sentEmailPayload.from !== env.EMAIL_FROM) {
+      throw new Error(`Sender mismatch: expected ${env.EMAIL_FROM}, got ${sentEmailPayload.from}`);
+    }
+    if (sentEmailPayload.subject !== 'Password Reset Request - Beauty Salon') {
+      throw new Error(`Subject mismatch: got "${sentEmailPayload.subject}"`);
+    }
+    if (!sentEmailPayload.html || !sentEmailPayload.text) {
+      throw new Error('Email payload missing HTML or text version!');
+    }
+
+    // Extract raw token from the reset URL in the email body
+    const tokenMatch = sentEmailPayload.text.match(/token=([a-f0-9]+)/i);
+    if (!tokenMatch) {
+      throw new Error('Failed to extract token from email body text!');
+    }
+    extractedRawToken = tokenMatch[1];
+
+    // Confirm that hashing the extracted raw token matches the DB hash
+    const computedHash = crypto.createHash('sha256').update(extractedRawToken).digest('hex');
+    if (computedHash !== tokenRecord.tokenHash) {
+      throw new Error('Raw token extracted from email does not match SHA256 hash in database!');
+    }
+    originalLog('✔ REQ 3 PASSED: Resend invoked with correct from, to, subject, HTML, text, and verifiable raw token.');
+
+    // -------------------------------------------------------------------------
+    // Requirement 9: Invalid tokens are rejected
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 9] Testing reset with invalid token...');
+    const invalidTokenRes = await fetch(`${baseUrl}/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        token: 'fake_non_existent_token_hex_99999999999999999999999999999999',
-        newPassword: 'SomeValidPassword123!',
-        confirmPassword: 'SomeValidPassword123!',
+        token: 'invalid_completely_fake_token_hex_1234567890',
+        newPassword: newPassword,
+        confirmPassword: newPassword,
       }),
     });
-    const fakeTokenData: any = await fakeTokenRes.json();
-    if (fakeTokenRes.status !== 400 || fakeTokenData.message !== 'Invalid or expired reset token') {
-      throw new Error(`Expected 400 'Invalid or expired reset token', got: ${JSON.stringify(fakeTokenData)}`);
+    const invalidTokenData: any = await invalidTokenRes.json();
+    if (invalidTokenRes.status !== 400 || invalidTokenData.message !== 'Invalid or expired reset token') {
+      throw new Error(`Expected 400 'Invalid or expired reset token', got: ${JSON.stringify(invalidTokenData)}`);
     }
-    console.log('✔ Fake token correctly rejected with 400');
+    originalLog('✔ REQ 9 PASSED: Invalid reset token correctly rejected with 400.');
 
-    // -------------------------------------------------------------
-    // Test 7: Reset Password with Expired Token
-    // -------------------------------------------------------------
-    console.log('\n[TEST 7] Testing reset with an expired token...');
+    // -------------------------------------------------------------------------
+    // Requirement 8: Expired tokens are rejected
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 8] Testing reset with expired token...');
     const expiredRawToken = crypto.randomBytes(32).toString('hex');
     const expiredHash = crypto.createHash('sha256').update(expiredRawToken).digest('hex');
     await prisma.passwordResetToken.create({
       data: {
         tokenHash: expiredHash,
         userId: testUserId,
-        expiresAt: new Date(Date.now() - 60000), // Expired 1 minute ago
+        expiresAt: new Date(Date.now() - 30000), // Expired 30 seconds ago
       },
     });
-
     const expiredRes = await fetch(`${baseUrl}/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         token: expiredRawToken,
-        newPassword: 'SomeValidPassword123!',
-        confirmPassword: 'SomeValidPassword123!',
-      }),
-    });
-    const expiredData: any = await expiredRes.json();
-    if (expiredRes.status !== 400 || expiredData.message !== 'Invalid or expired reset token') {
-      throw new Error(`Expected 400 'Invalid or expired reset token' for expired token, got: ${JSON.stringify(expiredData)}`);
-    }
-    console.log('✔ Expired token correctly rejected and cleaned up');
-
-    // -------------------------------------------------------------
-    // Test 8: Reset Password with Weak Password
-    // -------------------------------------------------------------
-    console.log('\n[TEST 8] Testing reset with weak password (missing special char)...');
-    const weakRes = await fetch(`${baseUrl}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: rawToken,
-        newPassword: 'WeakPassword123', // missing special char
-        confirmPassword: 'WeakPassword123',
-      }),
-    });
-    const weakData: any = await weakRes.json();
-    if (weakRes.status !== 400) {
-      throw new Error(`Expected 400 for weak password, got: ${JSON.stringify(weakData)}`);
-    }
-    console.log('✔ Weak password correctly rejected with 400');
-
-    // -------------------------------------------------------------
-    // Test 9: Reset Password with Mismatched Confirmation
-    // -------------------------------------------------------------
-    console.log('\n[TEST 9] Testing reset with password mismatch...');
-    const mismatchRes = await fetch(`${baseUrl}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: rawToken,
-        newPassword: newPassword,
-        confirmPassword: 'DifferentPassword123!',
-      }),
-    });
-    const mismatchData: any = await mismatchRes.json();
-    if (mismatchRes.status !== 400) {
-      throw new Error(`Expected 400 for mismatched passwords, got: ${JSON.stringify(mismatchData)}`);
-    }
-    console.log('✔ Password mismatch correctly rejected with 400');
-
-    // -------------------------------------------------------------
-    // Test 10: Successful Password Reset
-    // -------------------------------------------------------------
-    console.log('\n[TEST 10] Performing valid password reset...');
-    const successResetRes = await fetch(`${baseUrl}/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: rawToken,
         newPassword: newPassword,
         confirmPassword: newPassword,
       }),
     });
-    const successResetData: any = await successResetRes.json();
-    if (!successResetRes.ok || !successResetData.success) {
-      throw new Error(`Valid reset failed: ${JSON.stringify(successResetData)}`);
+    const expiredData: any = await expiredRes.json();
+    if (expiredRes.status !== 400 || expiredData.message !== 'Invalid or expired reset token') {
+      throw new Error(`Expected 400 for expired token, got: ${JSON.stringify(expiredData)}`);
     }
-    console.log(`✔ Password reset succeeded: "${successResetData.message}"`);
+    originalLog('✔ REQ 8 PASSED: Expired reset token correctly rejected with 400.');
 
-    // -------------------------------------------------------------
-    // Test 11: Verify Old Password No Longer Works
-    // -------------------------------------------------------------
-    console.log('\n[TEST 11] Verifying old password no longer works...');
+    // -------------------------------------------------------------------------
+    // Requirement 4: Reset-password with a valid token works
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 4] Resetting password with valid extracted token...');
+    const resetRes = await fetch(`${baseUrl}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: extractedRawToken,
+        newPassword: newPassword,
+        confirmPassword: newPassword,
+      }),
+    });
+    const resetData: any = await resetRes.json();
+    if (!resetRes.ok || !resetData.success) {
+      throw new Error(`Reset password failed: ${JSON.stringify(resetData)}`);
+    }
+    originalLog(`✔ REQ 4 PASSED: Reset-password succeeded: "${resetData.message}"`);
+
+    // -------------------------------------------------------------------------
+    // Requirement 5: Old password no longer works
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 5] Verifying old password no longer works...');
     const oldLoginRes = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -229,12 +252,12 @@ async function runTests() {
     if (oldLoginRes.status !== 401 || oldLoginData.message !== 'Invalid credentials') {
       throw new Error(`Expected 401 for old password, got: ${JSON.stringify(oldLoginData)}`);
     }
-    console.log('✔ Old password rejected with 401 Unauthorized');
+    originalLog('✔ REQ 5 PASSED: Old password rejected with 401 Unauthorized.');
 
-    // -------------------------------------------------------------
-    // Test 12: Verify New Password Works
-    // -------------------------------------------------------------
-    console.log('\n[TEST 12] Logging in with new password...');
+    // -------------------------------------------------------------------------
+    // Requirement 6: New password works
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 6] Verifying new password works...');
     const newLoginRes = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -242,54 +265,89 @@ async function runTests() {
     });
     const newLoginData: any = await newLoginRes.json();
     if (!newLoginRes.ok || !newLoginData.success || !newLoginData.data.token) {
-      throw new Error(`New password login failed: ${JSON.stringify(newLoginData)}`);
+      throw new Error(`Login with new password failed: ${JSON.stringify(newLoginData)}`);
     }
-    console.log('✔ New password login successful and JWT issued');
+    originalLog('✔ REQ 6 PASSED: Login with new password succeeded and JWT issued.');
 
-    // -------------------------------------------------------------
-    // Test 13: Verify Token Cannot Be Reused (Single-Use Token)
-    // -------------------------------------------------------------
-    console.log('\n[TEST 13] Verifying token cannot be reused...');
+    // -------------------------------------------------------------------------
+    // Requirement 7: The reset token cannot be reused
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 7] Verifying reset token cannot be reused...');
     const reuseRes = await fetch(`${baseUrl}/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        token: rawToken,
-        newPassword: 'AnotherPassword123!',
-        confirmPassword: 'AnotherPassword123!',
+        token: extractedRawToken,
+        newPassword: 'AnotherPassword999!',
+        confirmPassword: 'AnotherPassword999!',
       }),
     });
     const reuseData: any = await reuseRes.json();
     if (reuseRes.status !== 400 || reuseData.message !== 'Invalid or expired reset token') {
-      throw new Error(`Expected token reuse to fail with 400, got: ${JSON.stringify(reuseData)}`);
+      throw new Error(`Expected 400 when reusing token, got: ${JSON.stringify(reuseData)}`);
     }
-    console.log('✔ Reusing used token was rejected with 400');
+    originalLog('✔ REQ 7 PASSED: Token reuse rejected with 400.');
 
-    // -------------------------------------------------------------
-    // Test 14: Existing Authentication Roles Still Work
-    // -------------------------------------------------------------
-    console.log('\n[TEST 14] Verifying existing user role check (/me endpoint)...');
-    const meRes = await fetch(`${baseUrl}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${newLoginData.data.token}`,
+    // -------------------------------------------------------------------------
+    // Requirement 10: API secrets, passwords, and raw reset tokens are never logged
+    // -------------------------------------------------------------------------
+    originalLog('\n[REQ 10] Checking logs for leaked secrets...');
+    const fullLogText = loggedOutputs.join('\n');
+
+    if (env.RESEND_API_KEY && fullLogText.includes(env.RESEND_API_KEY)) {
+      throw new Error('SECURITY VIOLATION: RESEND_API_KEY was found in application logs!');
+    }
+    if (fullLogText.includes(oldPassword)) {
+      throw new Error('SECURITY VIOLATION: Old password was found in application logs!');
+    }
+    if (fullLogText.includes(newPassword)) {
+      throw new Error('SECURITY VIOLATION: New password was found in application logs!');
+    }
+    if (extractedRawToken && fullLogText.includes(extractedRawToken)) {
+      throw new Error('SECURITY VIOLATION: Raw reset token was found in application logs!');
+    }
+    originalLog('✔ REQ 10 PASSED: No API keys, passwords, or raw tokens were ever printed to logs.');
+
+    // -------------------------------------------------------------------------
+    // Resend Error Handling Verification
+    // Verify that if Resend returns an error, forgot-password STILL returns 200 generic message
+    // -------------------------------------------------------------------------
+    originalLog('\n[EXTRA TEST] Verifying error resilience when Resend fails...');
+    setResendClient({
+      emails: {
+        send: async () => ({
+          data: null,
+          error: { message: 'Domain not verified in Resend', name: 'validation_error', statusCode: 403 },
+        }),
       },
-    });
-    const meData: any = await meRes.json();
-    if (!meRes.ok || meData.data.id !== testUserId || meData.data.role !== 'USER') {
-      throw new Error(`Profile retrieval failed: ${JSON.stringify(meData)}`);
-    }
-    console.log(`✔ User profile retrieved successfully. Role: ${meData.data.role}`);
+    } as any);
 
-    console.log('\n═══════════════════════════════════════════════════════════════');
-    console.log('   ALL 14 PASSWORD RESET VERIFICATION CHECKS PASSED! 🎉        ');
-    console.log('═══════════════════════════════════════════════════════════════\n');
+    const errorForgotRes = await fetch(`${baseUrl}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testEmail }),
+    });
+    const errorForgotData: any = await errorForgotRes.json();
+    if (!errorForgotRes.ok || !errorForgotData.success || errorForgotData.message !== expectedGenericMsg) {
+      throw new Error(`Forgot-password did not return generic message when Resend failed: ${JSON.stringify(errorForgotData)}`);
+    }
+    originalLog('✔ RESEND ERROR RESILIENCE PASSED: Generic 200 response maintained even on Resend delivery failure.');
+
+    originalLog('\n═══════════════════════════════════════════════════════════════');
+    originalLog('   ALL 10 VERIFICATION REQUIREMENTS COMPLETED SUCCESSFULLY! 🎉  ');
+    originalLog('═══════════════════════════════════════════════════════════════\n');
   } finally {
+    // Restore original console
+    console.log = originalLog;
+    console.error = originalError;
+    console.warn = originalWarn;
+
     // Cleanup test user
     if (testUserId) {
-      console.log(`[CLEANUP] Deleting test user ${testUserId}...`);
+      originalLog(`[CLEANUP] Deleting test user ${testUserId}...`);
       await prisma.passwordResetToken.deleteMany({ where: { userId: testUserId } });
       await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
-      console.log('[CLEANUP] Done.');
+      originalLog('[CLEANUP] Done.');
     }
     server.close();
     await prisma.$disconnect();

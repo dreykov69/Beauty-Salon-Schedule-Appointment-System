@@ -139,7 +139,11 @@ export const requestPasswordReset = async (email: string) => {
     });
 
     // Send the password reset email with the raw token
-    await sendPasswordResetEmail(user.email, rawToken);
+    try {
+      await sendPasswordResetEmail(user.email, rawToken);
+    } catch (emailError: any) {
+      console.error('Failed to send password reset email via Resend:', emailError?.message || 'Email delivery failed');
+    }
   }
 
   return {
